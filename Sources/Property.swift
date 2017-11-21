@@ -614,7 +614,7 @@ public final class MutableProperty<Value>: ComposableMutablePropertyProtocol {
 		get { return box.value }
 		set { modify { $0 = newValue } }
 	}
-
+	
 	/// The lifetime of the property.
 	public let lifetime: Lifetime
 
@@ -674,6 +674,13 @@ public final class MutableProperty<Value>: ComposableMutablePropertyProtocol {
 	public func modify<Result>(_ action: (inout Value) throws -> Result) rethrows -> Result {
 		return try box.begin { storage in
 			defer { observer.send(value: storage.value) }
+			return try storage.modify(action)
+		}
+	}
+
+	@discardableResult
+	public func modify2<Result>(_ action: (inout Value) throws -> Result) rethrows -> Result {
+		return try box.begin { storage in
 			return try storage.modify(action)
 		}
 	}
@@ -758,5 +765,19 @@ private final class PropertyBox<Value> {
 		lock.lock()
 		defer { lock.unlock() }
 		return try action(PropertyStorage(self))
+	}
+}
+
+
+extension MutableProperty where Value : Equatable {
+	public func set(if ifValue:Value, then thenValue:Value) -> Bool {
+		return self.modify { (value) -> Bool in
+			guard value == ifValue else {
+				return false
+			}
+			
+			value = thenValue
+			return true
+		}
 	}
 }
