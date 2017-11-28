@@ -678,6 +678,7 @@ public final class MutableProperty<Value>: ComposableMutablePropertyProtocol {
 		}
 	}
 
+	/// modify without triggering change, ££££ should be done differently, because the subscriber may get confused
 	@discardableResult
 	public func modify2<Result>(_ action: (inout Value) throws -> Result) rethrows -> Result {
 		return try box.begin { storage in
@@ -777,6 +778,17 @@ extension MutableProperty where Value : Equatable {
 			}
 			
 			value = thenValue
+			return true
+		}
+	}
+
+	public func progress(from fromRequiredStateValue:Value, to thenStateValue:Value) -> Bool {
+		return self.modify { (value) -> Bool in
+			guard value == fromRequiredStateValue else {
+				return false
+			}
+			
+			value = thenStateValue
 			return true
 		}
 	}
