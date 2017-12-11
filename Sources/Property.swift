@@ -675,6 +675,14 @@ public final class MutableProperty<Value>: ComposableMutablePropertyProtocol {
 		}
 	}
 
+	/// modify without triggering change, ££££ should be done differently, because the subscriber may get confused
+	@discardableResult
+	public func modify2<Result>(_ action: (inout Value) throws -> Result) rethrows -> Result {
+		return try box.begin { storage in
+			return try storage.modify(action)
+		}
+	}
+
 	/// Atomically modifies the variable.
 	///
 	/// - warning: The reference should not be escaped.
@@ -755,5 +763,30 @@ private final class PropertyBox<Value> {
 		lock.lock()
 		defer { lock.unlock() }
 		return try action(PropertyStorage(self))
+	}
+}
+
+
+extension MutableProperty where Value : Equatable {
+	public func set(if ifValue:Value, then thenValue:Value) -> Bool {
+		return self.modify { (value) -> Bool in
+			guard value == ifValue else {
+				return false
+			}
+			
+			value = thenValue
+			return true
+		}
+	}
+
+	public func progress(from fromRequiredStateValue:Value, to thenStateValue:Value) -> Bool {
+		return self.modify { (value) -> Bool in
+			guard value == fromRequiredStateValue else {
+				return false
+			}
+			
+			value = thenStateValue
+			return true
+		}
 	}
 }
